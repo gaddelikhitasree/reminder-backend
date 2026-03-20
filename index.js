@@ -1,5 +1,4 @@
 const express = require('express');
-const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 
@@ -9,15 +8,21 @@ app.use(cors());
 
 const PORT = 5000;
 
-// 🔥 Store reminders
-let reminders = [];
-
 // Email setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'gaddelikhitasree@gmail.com',
-    pass: 'ttya bngg vhds emjh' // ⚠️ later move to .env
+    pass: 'ttya bngg vhds emjh'
+  }
+});
+
+// 🔥 VERIFY EMAIL CONFIG (IMPORTANT)
+transporter.verify((error, success) => {
+  if (error) {
+    console.log("❌ Email config error:", error);
+  } else {
+    console.log("✅ Email server ready");
   }
 });
 
@@ -34,46 +39,37 @@ app.post('/add-reminder', (req, res) => {
     return res.status(400).send("Missing fields");
   }
 
-  reminders.push({
-    email,
-    message,
-    dateTime,
-    sent: false
-  });
-
-  console.log("Reminder added:", message);
-
-  res.send("Reminder scheduled!");
-});
-
-// 🔥 CRON JOB (runs every minute)
-cron.schedule('* * * * *', () => {
+  const reminderTime = new Date(dateTime);
   const now = new Date();
 
-  reminders.forEach((r, index) => {
-    const reminderTime = new Date(r.dateTime);
+  const delay = reminderTime - now;
 
-    if (now >= reminderTime && !r.sent) {
-      transporter.sendMail(
-        {
-          from: 'gaddelikhitasree@gmail.com',
-          to: r.email,
-          subject: 'Reminder 🔔',
-          text: r.message
-        },
-        (err, info) => {
-          if (err) {
-            console.log("Error:", err);
-          } else {
-            console.log("Email sent:", info.response);
-          }
+  if (delay <= 0) {
+    return res.send("Time must be in future");
+  }
+
+  console.log("⏰ Reminder set for:", reminderTime);
+
+  // 🔥 SEND EMAIL AFTER DELAY
+  setTimeout(() => {
+    transporter.sendMail(
+      {
+        from: 'gaddelikhitasree@gmail.com',
+        to: email,
+        subject: 'Reminder 🔔',
+        text: message
+      },
+      (err, info) => {
+        if (err) {
+          console.log("❌ Email error:", err);
+        } else {
+          console.log("✅ Email sent:", info.response);
         }
-      );
+      }
+    );
+  }, delay);
 
-      // mark as sent
-      reminders[index].sent = true;
-    }
-  });
+  res.send("Reminder scheduled!");
 });
 
 app.listen(PORT, () => {
