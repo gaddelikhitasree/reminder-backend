@@ -1,14 +1,17 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
+const { Resend } = require('resend');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
+
+// ✅ RESEND SETUP
+const resend = new Resend("re_b96P3dLT_BMNudZZEaVykQsgjoNMQoMcW");
 
 // ✅ CONNECT MONGODB
 mongoose.connect("mongodb+srv://gaddelikhitasree_db_user:CYnjIhWBiOFhckj0@cluster0.5r1ownf.mongodb.net/reminderDB?retryWrites=true&w=majority")
@@ -24,25 +27,6 @@ const reminderSchema = new mongoose.Schema({
 });
 
 const Reminder = mongoose.model('Reminder', reminderSchema);
-
-// ✅ EMAIL SETUP (FIXED FOR RENDER)
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // 🔥 IMPORTANT CHANGE
-  auth: {
-    user: "gaddelikhitasree@gmail.com",
-    pass: "ttya bngg vhds emjh"
-  }
-});
-// ✅ VERIFY EMAIL
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log("❌ Email config error:", error);
-  } else {
-    console.log("✅ Email server ready");
-  }
-});
 
 // ✅ HOME ROUTE
 app.get('/', (req, res) => {
@@ -88,11 +72,11 @@ cron.schedule('* * * * *', async () => {
 
     for (let r of reminders) {
       try {
-        await transporter.sendMail({
-          from: 'gaddelikhitasree@gmail.com',
+        await resend.emails.send({
+          from: 'onboarding@resend.dev',
           to: r.email,
           subject: 'Reminder 🔔',
-          text: r.message
+          html: `<p>${r.message}</p>`
         });
 
         console.log("✅ Email sent:", r.message);
