@@ -9,12 +9,15 @@ app.use(cors());
 
 const PORT = 5000;
 
+// 🔥 Store reminders
+let reminders = [];
+
 // Email setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'gaddelikhitasree@gmail.com',
-    pass: 'jzsa syfh oknn nfnj'
+    pass: 'jzsa syfh oknn nfnj' // ⚠️ later move to .env
   }
 });
 
@@ -23,35 +26,54 @@ app.get('/', (req, res) => {
   res.send('Backend is running');
 });
 
-// API to add reminder
+// ✅ Add reminder API
 app.post('/add-reminder', (req, res) => {
   const { email, message, dateTime } = req.body;
 
-  const reminderTime = new Date(dateTime);
-  const now = new Date();
-
-  const delay = reminderTime - now;
-
-  if (delay <= 0) {
-    return res.send("Time must be in future");
+  if (!email || !message || !dateTime) {
+    return res.status(400).send("Missing fields");
   }
 
-  setTimeout(() => {
-    transporter.sendMail({
-      from: 'gaddelikhitasree@gmail.com',
-      to: email,
-      subject: 'Reminder 🔔',
-      text: message
-    }, (err, info) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log("Email sent: " + info.response);
-      }
-    });
-  }, delay);
+  reminders.push({
+    email,
+    message,
+    dateTime,
+    sent: false
+  });
+
+  console.log("Reminder added:", message);
 
   res.send("Reminder scheduled!");
+});
+
+// 🔥 CRON JOB (runs every minute)
+cron.schedule('* * * * *', () => {
+  const now = new Date();
+
+  reminders.forEach((r, index) => {
+    const reminderTime = new Date(r.dateTime);
+
+    if (now >= reminderTime && !r.sent) {
+      transporter.sendMail(
+        {
+          from: 'gaddelikhitasree@gmail.com',
+          to: r.email,
+          subject: 'Reminder 🔔',
+          text: r.message
+        },
+        (err, info) => {
+          if (err) {
+            console.log("Error:", err);
+          } else {
+            console.log("Email sent:", info.response);
+          }
+        }
+      );
+
+      // mark as sent
+      reminders[index].sent = true;
+    }
+  });
 });
 
 app.listen(PORT, () => {
