@@ -33,7 +33,7 @@ app.get('/', (req, res) => {
   res.send('Backend is running');
 });
 
-// ✅ ADD REMINDER
+// ✅ ADD REMINDER (FIXED)
 app.post('/add-reminder', async (req, res) => {
   try {
     const { email, message, dateTime } = req.body;
@@ -45,7 +45,7 @@ app.post('/add-reminder', async (req, res) => {
     const reminder = new Reminder({
       email,
       message,
-      dateTime: new Date(dateTime),
+      dateTime: dateTime, // ✅ FIXED (NO new Date)
       sent: false
     });
 
@@ -60,7 +60,7 @@ app.post('/add-reminder', async (req, res) => {
   }
 });
 
-// ✅ FIXED CRON JOB (CORRECT TIMING)
+// ✅ CRON JOB (FINAL CORRECT VERSION)
 cron.schedule('* * * * *', async () => {
   const now = new Date();
 
@@ -70,7 +70,7 @@ cron.schedule('* * * * *', async () => {
     for (let r of reminders) {
       const reminderTime = new Date(r.dateTime);
 
-      // ⏰ Match exact minute (IGNORE seconds)
+      // ✅ MATCH EXACT TIME
       const isSameMinute =
         reminderTime.getFullYear() === now.getFullYear() &&
         reminderTime.getMonth() === now.getMonth() &&
