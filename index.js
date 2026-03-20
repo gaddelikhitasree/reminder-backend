@@ -1,14 +1,31 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const mongoose = require('mongoose');
+const cron = require('node-cron');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-// Email setup
+// ✅ CONNECT MONGODB
+mongoose.connect("mongodb+srv://gaddelikhitasree_db_user:CYnjIhWBiOFhckj0@cluster0.5r1ownf.mongodb.net/reminderDB?retryWrites=true&w=majority")
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.log("❌ Mongo error:", err));
+
+// ✅ SCHEMA
+const reminderSchema = new mongoose.Schema({
+  email: String,
+  message: String,
+  dateTime: Date,
+  sent: { type: Boolean, default: false }
+});
+
+const Reminder = mongoose.model('Reminder', reminderSchema);
+
+// ✅ EMAIL SETUP
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -17,61 +34,77 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// 🔥 VERIFY EMAIL CONFIG (IMPORTANT)
-transporter.verify((error, success) => {
-  if (error) {
-    console.log("❌ Email config error:", error);
-  } else {
-    console.log("✅ Email server ready");
-  }
-});
+// ✅ VERIFY EMAIL (important)
+transporter.verify()
+  .then(() => console.log("✅ Email server ready"))
+  .catch(err => console.log("❌ Email config error:", err));
 
-// Home route
+// ✅ HOME ROUTE
 app.get('/', (req, res) => {
   res.send('Backend is running');
 });
 
-// ✅ Add reminder API
-app.post('/add-reminder', (req, res) => {
-  const { email, message, dateTime } = req.body;
+// ✅ ADD REMINDER
+app.post('/add-reminder', async (req, res) => {
+  try {
+    const { email, message, dateTime } = req.body;
 
-  if (!email || !message || !dateTime) {
-    return res.status(400).send("Missing fields");
+    if (!email || !message || !dateTime) {
+      return res.status(400).send("Missing fields");
+    }
+
+    const reminder = new Reminder({
+      email,
+      message,
+      dateTime: new Date(dateTime),
+      sent: false
+    });
+
+    await reminder.save();
+
+    console.log("📌 Reminder saved:", message);
+
+    res.send("Reminder stored!");
+  } catch (err) {
+    console.log("❌ Error saving reminder:", err);
+    res.status(500).send("Server error");
   }
-
-  const reminderTime = new Date(dateTime);
-  const now = new Date();
-
-  const delay = reminderTime - now;
-
-  if (delay <= 0) {
-    return res.send("Time must be in future");
-  }
-
-  console.log("⏰ Reminder set for:", reminderTime);
-
-  // 🔥 SEND EMAIL AFTER DELAY
-  setTimeout(() => {
-    transporter.sendMail(
-      {
-        from: 'gaddelikhitasree@gmail.com',
-        to: email,
-        subject: 'Reminder 🔔',
-        text: message
-      },
-      (err, info) => {
-        if (err) {
-          console.log("❌ Email error:", err);
-        } else {
-          console.log("✅ Email sent:", info.response);
-        }
-      }
-    );
-  }, delay);
-
-  res.send("Reminder scheduled!");
 });
 
+// ✅ CRON JOB (RUNS EVERY MINUTE)
+cron.schedule('* * * * *', async () => {
+  const now = new Date();
+
+  try {
+    const reminders = await Reminder.find({
+      dateTime: { $lte: now },
+      sent: false
+    });
+
+    for (let r of reminders) {
+      try {
+        await transporter.sendMail({
+          from: 'gaddelikhitasree@gmail.com',
+          to: r.email,
+          subject: 'Reminder 🔔',
+          text: r.message
+        });
+
+        console.log("✅ Email sent:", r.message);
+
+        r.sent = true;
+        await r.save();
+
+      } catch (err) {
+        console.log("❌ Email error:", err);
+      }
+    }
+  } catch (err) {
+    console.log("❌ Cron error:", err);
+  }
+});
+
+// ✅ START SERVER
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
