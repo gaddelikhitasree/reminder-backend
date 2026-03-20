@@ -28,14 +28,13 @@ const Reminder = mongoose.model('Reminder', reminderSchema);
 // ✅ EMAIL SETUP (FIXED FOR RENDER)
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // IMPORTANT
+  port: 465,
+  secure: true, // 🔥 IMPORTANT CHANGE
   auth: {
     user: "gaddelikhitasree@gmail.com",
     pass: "ttya bngg vhds emjh"
   }
 });
-
 // ✅ VERIFY EMAIL
 transporter.verify(function (error, success) {
   if (error) {
