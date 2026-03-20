@@ -69,12 +69,16 @@ cron.schedule('* * * * *', async () => {
 
     for (let r of reminders) {
       const reminderTime = new Date(r.dateTime);
-      const diff = reminderTime - now;
 
-      console.log("⏰ Checking:", r.message, "diff:", diff);
+      // ⏰ Match exact minute (IGNORE seconds)
+      const isSameMinute =
+        reminderTime.getFullYear() === now.getFullYear() &&
+        reminderTime.getMonth() === now.getMonth() &&
+        reminderTime.getDate() === now.getDate() &&
+        reminderTime.getHours() === now.getHours() &&
+        reminderTime.getMinutes() === now.getMinutes();
 
-      // ✅ Only send when within next 1 minute
-      if (diff <= 60000 && diff > 0) {
+      if (isSameMinute) {
         try {
           await resend.emails.send({
             from: 'onboarding@resend.dev',
@@ -82,6 +86,21 @@ cron.schedule('* * * * *', async () => {
             subject: 'Reminder 🔔',
             html: `<p>${r.message}</p>`
           });
+
+          console.log("✅ Email sent:", r.message);
+
+          r.sent = true;
+          await r.save();
+
+        } catch (err) {
+          console.log("❌ Email error:", err);
+        }
+      }
+    }
+  } catch (err) {
+    console.log("❌ Cron error:", err);
+  }
+});
 
           console.log("✅ Email sent:", r.message);
 
