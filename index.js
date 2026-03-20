@@ -102,21 +102,6 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-          console.log("✅ Email sent:", r.message);
-
-          r.sent = true;
-          await r.save();
-
-        } catch (err) {
-          console.log("❌ Email error:", err);
-        }
-      }
-    }
-  } catch (err) {
-    console.log("❌ Cron error:", err);
-  }
-});
-
 // ✅ START SERVER
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
