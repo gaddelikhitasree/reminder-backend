@@ -25,19 +25,25 @@ const reminderSchema = new mongoose.Schema({
 
 const Reminder = mongoose.model('Reminder', reminderSchema);
 
-// ✅ EMAIL SETUP
+// ✅ EMAIL SETUP (FIXED FOR RENDER)
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // IMPORTANT
   auth: {
-    user: 'gaddelikhitasree@gmail.com',
-    pass: 'ttya bngg vhds emjh'
+    user: "gaddelikhitasree@gmail.com",
+    pass: "ttya bngg vhds emjh"
   }
 });
 
-// ✅ VERIFY EMAIL (important)
-transporter.verify()
-  .then(() => console.log("✅ Email server ready"))
-  .catch(err => console.log("❌ Email config error:", err));
+// ✅ VERIFY EMAIL
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("❌ Email config error:", error);
+  } else {
+    console.log("✅ Email server ready");
+  }
+});
 
 // ✅ HOME ROUTE
 app.get('/', (req, res) => {
