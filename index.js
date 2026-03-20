@@ -51,7 +51,7 @@ app.post('/add-reminder', async (req, res) => {
 
     await reminder.save();
 
-    console.log("📌 Reminder saved:", message);
+    console.log("📌 Reminder saved:", message, "for", dateTime);
 
     res.send("Reminder stored!");
   } catch (err) {
@@ -60,32 +60,37 @@ app.post('/add-reminder', async (req, res) => {
   }
 });
 
-// ✅ CRON JOB (RUNS EVERY MINUTE)
+// ✅ FIXED CRON JOB (CORRECT TIMING)
 cron.schedule('* * * * *', async () => {
   const now = new Date();
 
   try {
-    const reminders = await Reminder.find({
-      dateTime: { $lte: now },
-      sent: false
-    });
+    const reminders = await Reminder.find({ sent: false });
 
     for (let r of reminders) {
-      try {
-        await resend.emails.send({
-          from: 'onboarding@resend.dev',
-          to: r.email,
-          subject: 'Reminder 🔔',
-          html: `<p>${r.message}</p>`
-        });
+      const reminderTime = new Date(r.dateTime);
+      const diff = reminderTime - now;
 
-        console.log("✅ Email sent:", r.message);
+      console.log("⏰ Checking:", r.message, "diff:", diff);
 
-        r.sent = true;
-        await r.save();
+      // ✅ Only send when within next 1 minute
+      if (diff <= 60000 && diff > 0) {
+        try {
+          await resend.emails.send({
+            from: 'onboarding@resend.dev',
+            to: r.email,
+            subject: 'Reminder 🔔',
+            html: `<p>${r.message}</p>`
+          });
 
-      } catch (err) {
-        console.log("❌ Email error:", err);
+          console.log("✅ Email sent:", r.message);
+
+          r.sent = true;
+          await r.save();
+
+        } catch (err) {
+          console.log("❌ Email error:", err);
+        }
       }
     }
   } catch (err) {
